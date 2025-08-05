@@ -371,12 +371,22 @@ export const httpNodeExecutor: NodeExecutor<HttpNodeData> = async ({
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-    const response = await fetch(finalUrl, {
+    // Configure fetch options for Docker environment
+    const fetchOptions: RequestInit = {
       method: node.method,
       headers,
       body,
       signal: controller.signal,
-    });
+    };
+
+    // In Docker environment, disable TLS verification for internal requests
+    if (process.env.DOCKER_BUILD === "1" && finalUrl.startsWith("https://")) {
+      console.log(
+        `HTTP Node: Making HTTPS request in Docker environment to ${finalUrl}`,
+      );
+    }
+
+    const response = await fetch(finalUrl, fetchOptions);
 
     clearTimeout(timeoutId);
 

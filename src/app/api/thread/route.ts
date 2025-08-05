@@ -1,6 +1,5 @@
 import { chatRepository } from "lib/db/repository";
 import { getSession } from "auth/server";
-import { redirect } from "next/navigation";
 import { generateUUID } from "lib/utils";
 import { generateTitleFromUserMessageAction } from "../chat/actions";
 
@@ -9,8 +8,8 @@ export async function POST(request: Request) {
 
   const session = await getSession();
 
-  if (!session?.user.id) {
-    return redirect("/sign-in");
+  if (!session?.user?.id) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const title = await generateTitleFromUserMessageAction({

@@ -63,6 +63,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser to get start
   - [Quick Start (Docker Compose Version) 🐳](#quick-start-docker-compose-version-)
   - [Quick Start (Local Version) 🚀](#quick-start-local-version-)
   - [Environment Variables](#environment-variables)
+  - [HTTPS Configuration 🔐](#https-configuration-)
 - [📘 Guides](#-guides)
     - [🔌 MCP Server Setup \& Tool Testing](#-mcp-server-setup--tool-testing)
     - [🐳 Docker Hosting Guide](#-docker-hosting-guide)
@@ -288,6 +289,124 @@ DISABLE_SIGN_UP=
 # Set this to 1 to disallow adding MCP servers.
 NOT_ALLOW_ADD_MCP_SERVERS=
 ```
+
+<br/>
+
+### HTTPS Configuration 🔐
+
+This project supports both HTTPS and HTTP modes. By default, the application uses HTTPS for enhanced security.
+
+#### Environment Variable Control
+
+Use the `NO_HTTPS` environment variable to control SSL/TLS behavior:
+
+```dotenv
+# === Server Configuration ===
+# Set to 1 to disable HTTPS and use HTTP instead (useful for development or behind reverse proxy)
+NO_HTTPS=0  # Default: Use HTTPS
+# NO_HTTPS=1  # Alternative: Use HTTP only
+```
+
+#### Available Scripts
+
+```bash
+# Start with HTTPS (default, requires SSL certificates)
+pnpm start:https
+
+# Start with HTTP only (no SSL certificates required)
+pnpm start:http
+
+# Or use environment variable
+NO_HTTPS=1 pnpm start:https
+```
+
+#### SSL Certificate Setup
+
+For HTTPS mode, you need SSL certificates in the `ssl/` directory:
+
+```bash
+ssl/
+├── server.key    # Private key
+└── server.crt    # Certificate file
+```
+
+**For development**, you can generate self-signed certificates:
+
+```bash
+# Create ssl directory
+mkdir -p ssl
+
+# Generate self-signed certificate (valid for 365 days)
+openssl req -x509 -newkey rsa:4096 -keyout ssl/server.key -out ssl/server.crt -days 365 -nodes -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"
+```
+
+#### Docker Configuration
+
+##### HTTPS Mode (Default)
+For HTTPS with Docker Compose, ensure your `docker/compose.yml` has SSL volume mount:
+
+```yaml
+# docker/compose.yml
+services:
+  mcp-client-chatbot:
+    # ...existing config...
+    ports:
+      - '443:3000'  # HTTPS port
+    environment:
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
+      - NODE_EXTRA_CA_CERTS=/app/ssl/server.crt
+    volumes:
+      - ../ssl:/app/ssl:ro  # Mount SSL certificates
+```
+
+##### HTTP Mode
+To disable HTTPS in Docker, modify your `docker/compose.yml`:
+
+```yaml
+# docker/compose.yml
+services:
+  mcp-client-chatbot:
+    # ...existing config...
+    ports:
+      - '3000:3000'   # HTTP port (change from 443:3000)
+      # - '443:3000'  # Comment out HTTPS port
+    environment:
+      - NO_HTTPS=1  # Add this line
+    # volumes:
+    #   - ../ssl:/app/ssl:ro  # Comment out SSL volume mount
+```
+
+Or add `NO_HTTPS=1` to your Docker `.env` file:
+
+```bash
+# docker/.env
+NO_HTTPS=1
+```
+
+#### Production Considerations
+
+- **Behind Reverse Proxy**: Use `NO_HTTPS=1` and let your reverse proxy (nginx, Apache, Cloudflare) handle SSL termination
+- **Direct HTTPS**: Use `NO_HTTPS=0` (default) with valid SSL certificates
+- **Development**: Use `NO_HTTPS=1` for simplicity or generate self-signed certificates
+
+#### Troubleshooting
+
+**SSL Certificate Errors:**
+```bash
+# Error: SSL certificates not found
+# Solution: Generate certificates or use HTTP mode
+NO_HTTPS=1 pnpm start:https
+```
+
+**Port Already in Use:**
+```bash
+# Change the port
+HTTPS_PORT=8443 pnpm start:https
+```
+
+**Browser Certificate Warnings:**
+- Self-signed certificates will show security warnings
+- Accept the risk for development or use proper certificates for production
 
 <br/>
 

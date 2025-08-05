@@ -13,10 +13,14 @@ import {
 } from "lib/db/pg/schema.pg";
 
 import logger from "logger";
-import { redirect } from "next/navigation";
 
 export const auth = betterAuth({
   plugins: [nextCookies()],
+  baseURL:
+    process.env.BETTER_AUTH_URL ||
+    (process.env.NODE_ENV === "production"
+      ? undefined
+      : "http://localhost:3000"),
   database: drizzleAdapter(pgDb, {
     provider: "pg",
     schema: {
@@ -40,10 +44,7 @@ export const auth = betterAuth({
   },
 
   advanced: {
-    useSecureCookies:
-      process.env.NO_HTTPS == "1"
-        ? false
-        : process.env.NODE_ENV === "production",
+    useSecureCookies: process.env.NODE_ENV === "production",
     database: {
       generateId: false,
     },
@@ -80,12 +81,21 @@ export const getSession = async () => {
       headers: await headers(),
     })
     .catch((e) => {
-      logger.error(e);
+      logger.error("Session error:", e);
       return null;
     });
   if (!session) {
-    logger.error("No session found");
-    redirect("/sign-in");
+    logger.warn("No session found - user needs to authenticate");
+    return null;
   }
-  return session!;
+  return session;
+};
+
+export const requireSession = async () => {
+  "use server";
+  const session = await getSession();
+  if (!session) {
+    throw new Error("Authentication required");
+  }
+  return session;
 };
